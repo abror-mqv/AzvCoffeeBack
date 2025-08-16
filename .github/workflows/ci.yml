@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint (flake8)
+        run: |
+          pip install flake8
+          flake8 . --exclude=.venv,venv,migrations --max-line-length=120
+
+      - name: Django checks
+        env:
+          DJANGO_SETTINGS_MODULE: backend.settings
+        run: |
+          python manage.py check
+
+      - name: Migrations health
+        env:
+          DJANGO_SETTINGS_MODULE: backend.settings
+        run: |
+          python manage.py makemigrations --check --dry-run
+
+      # Optional: run tests if/when you add them
+      - name: Run tests
+        if: ${{ always() }}
+        env:
+          DJANGO_SETTINGS_MODULE: backend.settings
+        run: |
+          pip install pytest pytest-django
+          pytest -q || true

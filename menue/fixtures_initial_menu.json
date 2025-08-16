@@ -1,0 +1,109 @@
+[
+  {
+    "model": "menue.category",
+    "pk": 1,
+    "fields": {
+      "name": "Кофе",
+      "description": "Классические кофейные напитки"
+    }
+  },
+  {
+    "model": "menue.category",
+    "pk": 2,
+    "fields": {
+      "name": "Чай",
+      "description": "Чёрный, зелёный, травяной чай"
+    }
+  },
+  {
+    "model": "menue.category",
+    "pk": 3,
+    "fields": {
+      "name": "Блинчики",
+      "description": "Свежие блинчики с начинками"
+    }
+  },
+  {
+    "model": "menue.category",
+    "pk": 4,
+    "fields": {
+      "name": "Десерты",
+      "description": "Сладкие угощения к кофе и чаю"
+    }
+  },
+  {
+    "model": "menue.menuitem",
+    "pk": 1,
+    "fields": {
+      "category": 1,
+      "name": "Эспрессо",
+      "description": "Классический итальянский эспрессо",
+      "ingredients": "Кофе арабика, вода",
+      "volume": "40 мл",
+      "price": "120.00",
+      "is_active": true,
+      "created_at": "2024-06-07T12:00:00Z",
+      "updated_at": "2024-06-07T12:00:00Z"
+    }
+  },
+  {
+    "model": "menue.menuitem",
+    "pk": 2,
+    "fields": {
+      "category": 1,
+      "name": "Капучино",
+      "description": "Кофе с молочной пенкой",
+      "ingredients": "Кофе арабика, молоко, вода",
+      "volume": "200 мл",
+      "price": "180.00",
+      "is_active": true,
+      "created_at": "2024-06-07T12:00:00Z",
+      "updated_at": "2024-06-07T12:00:00Z"
+    }
+  },
+  {
+    "model": "menue.menuitem",
+    "pk": 3,
+    "fields": {
+      "category": 2,
+      "name": "Чёрный чай",
+      "description": "Классический чёрный чай",
+      "ingredients": "Чай чёрный, вода",
+      "volume": "400 мл",
+      "price": "90.00",
+      "is_active": true,
+      "created_at": "2024-06-07T12:00:00Z",
+      "updated_at": "2024-06-07T12:00:00Z"
+    }
+  },
+  {
+    "model": "menue.menuitem",
+    "pk": 4,
+    "fields": {
+      "category": 3,
+      "name": "Блинчики с творогом",
+      "description": "Нежные блинчики с творожной начинкой",
+      "ingredients": "Мука, молоко, яйца, творог, сахар",
+      "volume": "2 шт.",
+      "price": "150.00",
+      "is_active": true,
+      "created_at": "2024-06-07T12:00:00Z",
+      "updated_at": "2024-06-07T12:00:00Z"
+    }
+  },
+  {
+    "model": "menue.menuitem",
+    "pk": 5,
+    "fields": {
+      "category": 4,
+      "name": "Чизкейк",
+      "description": "Классический чизкейк Нью-Йорк",
+      "ingredients": "Сливочный сыр, печенье, яйца, сахар",
+      "volume": "1 кусок",
+      "price": "200.00",
+      "is_active": true,
+      "created_at": "2024-06-07T12:00:00Z",
+      "updated_at": "2024-06-07T12:00:00Z"
+    }
+  }
+] 
