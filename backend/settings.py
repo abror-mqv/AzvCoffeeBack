@@ -25,8 +25,6 @@ SECRET_KEY = 'django-insecure-tb=y#w*upncw-+bfcgu(s#-1&vyao7r%nh#)l)z#swqq_rtdd=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -65,7 +63,8 @@ ALLOWED_HOSTS = [
     '192.168.1.106',
     "127.0.0.1",
 "192.168.1.102",
-"192.168.1.107"
+"192.168.1.107",
+"176.126.164.86"
 ]
 TEMPLATES = [
     {
