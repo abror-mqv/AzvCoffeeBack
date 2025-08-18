@@ -107,9 +107,12 @@ class LoyaltyCodeVerifyView(generics.GenericAPIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Помечаем код как использованный (деактивируем) — триггер для редиректа клиента
-            loyalty_code.is_active = False
-            loyalty_code.save(update_fields=["is_active"])
+            # Валидация прошла, но больше НЕ деактивируем код на этапе верификации.
+            # Код деактивируется только при успешном создании транзакции.
+            try:
+                print(f"[LoyaltyCodeVerifyView] Verified code without deactivation: code={loyalty_code.code}")
+            except Exception:
+                pass
 
             # Возвращаем информацию о пользователе, которому принадлежит код
             user_data = {
