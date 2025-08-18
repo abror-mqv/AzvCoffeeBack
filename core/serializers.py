@@ -80,6 +80,7 @@ class ClientInfoSerializer(serializers.ModelSerializer):
     rank_icon = serializers.SerializerMethodField()
 
     notifications = serializers.SerializerMethodField()
+    redeem_token = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -88,7 +89,7 @@ class ClientInfoSerializer(serializers.ModelSerializer):
             'points', 'coffee_count', 'total_spent',
             'free_coffee_count', 'coffee_to_next_free', 'total_spent_rubles',
             'rank', 'cashback_percent', 'next_rank', 'progress_to_next_percent',
-            'rank_color', 'rank_icon', 'notifications'
+            'rank_color', 'rank_icon', 'notifications', 'redeem_token'
         ]
 
     def get_free_coffee_count(self, obj):
@@ -150,6 +151,20 @@ class ClientInfoSerializer(serializers.ModelSerializer):
 
     def get_total_spent_rubles(self, obj):
         return obj.get_total_spent_rubles()
+
+    def get_redeem_token(self, obj):
+        try:
+            from loyalty.models import LoyaltyCode
+            from django.utils import timezone
+            lc = LoyaltyCode.objects.filter(
+                user=obj,
+                is_active=True,
+                is_free_coffee_redemption=True,
+                expires_at__gt=timezone.now(),
+            ).order_by('-created_at').first()
+            return lc.code if lc else None
+        except Exception:
+            return None
 
     def _rank_tuple(self, obj):
         from .models import Rank

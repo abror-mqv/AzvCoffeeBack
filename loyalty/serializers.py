@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 from .models import LoyaltyCode, LoyaltyTransaction
 from core.models import User, Rank
 from core.serializers import UserSerializer
@@ -39,9 +40,13 @@ class LoyaltyTransactionSerializer(serializers.ModelSerializer):
 
 
 class LoyaltyCodeVerificationSerializer(serializers.Serializer):
-    """Сериализатор для верификации кода лояльности"""
-    
-    code = serializers.CharField(max_length=6, required=True)
+    """Сериализатор для верификации кода лояльности (6 или 8 цифр)"""
+    code = serializers.CharField(max_length=8, required=True)
+
+    def validate_code(self, value):
+        if not value.isdigit() or len(value) not in (6, 8):
+            raise serializers.ValidationError("Код должен состоять из 6 или 8 цифр")
+        return value
     
 
 class LoyaltyTransactionCreateSerializer(serializers.Serializer):
@@ -72,6 +77,10 @@ class LoyaltyTransactionCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"code": "Код истек"})
             
             user = code_obj.user
+
+            # Нельзя проводить платную транзакцию по коду бесплатного кофе
+            if code_obj.is_free_coffee_redemption:
+                raise serializers.ValidationError({"code": "Это код для бесплатного кофе. Используйте подтверждение выдачи бесплатного кофе."})
             
             if points_to_use > user.points:
                 try:
@@ -136,7 +145,7 @@ class LoyaltyTransactionCreateSerializer(serializers.Serializer):
             )
         except Exception:
             pass
-        transaction = LoyaltyTransaction.objects.create(
+        trx = LoyaltyTransaction.objects.create(
             user=user,
             barista=barista,
             coffee_shop=coffee_shop,
@@ -146,11 +155,34 @@ class LoyaltyTransactionCreateSerializer(serializers.Serializer):
             points_earned=points_earned
         )
         
-        # Обновляем данные пользователя
-        user.points = user.points - points_to_use + points_earned
-        user.coffee_count += coffee_quantity
-        user.total_spent += amount * 100  # в копейках
-        user.save()
+        # Обновляем данные пользователя и выпускаем бесплатный токен при достижении 7
+        with transaction.atomic():
+            user.points = user.points - points_to_use + points_earned
+            before = user.coffee_count or 0
+            after = before + (coffee_quantity or 0)
+
+            # Проверяем наличие активного бесплатного токена
+            has_active_free = LoyaltyCode.objects.filter(user=user, is_active=True, is_free_coffee_redemption=True).exists()
+
+            if has_active_free:
+                # Штампы не накапливаются выше 6, пока есть активный бесплатный токен
+                user.coffee_count = min(6, after)
+            else:
+                if after >= 7:
+                    # Выдали один бесплатный токен, стакать нельзя
+                    user.coffee_count = max(0, after - 7)
+                    # Кэп на 6 в случае очень большого заказа
+                    user.coffee_count = min(user.coffee_count, 6)
+                    try:
+                        LoyaltyCode.create_free_for_user(user)
+                    except Exception:
+                        # Даже если выпуск кода не удался, не падаем транзакцией продаж
+                        pass
+                else:
+                    user.coffee_count = after
+
+            user.total_spent += amount * 100  # в копейках
+            user.save()
         
         # Деактивируем код
         try:
@@ -159,4 +191,4 @@ class LoyaltyTransactionCreateSerializer(serializers.Serializer):
             pass
         code_obj.deactivate()
         
-        return transaction
+        return trx

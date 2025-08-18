@@ -5,7 +5,8 @@ from .views import (
     LoyaltyCodeVerifyView,
     LoyaltyCodeStatusView,
     LoyaltyTransactionCreateView,
-    LoyaltyTransactionHistoryView
+    LoyaltyTransactionHistoryView,
+    LoyaltyFreeCoffeeConfirmView
 )
 
 app_name = 'loyalty'
@@ -27,4 +28,7 @@ urlpatterns = [
     
     # Маршрут для получения истории транзакций
     path('loyalty/transactions/', LoyaltyTransactionHistoryView.as_view(), name='transaction_history'),
+
+    # Подтверждение выдачи бесплатного кофе (бариста)
+    path('loyalty/free-coffee/confirm/', LoyaltyFreeCoffeeConfirmView.as_view(), name='free_coffee_confirm'),
 ] 

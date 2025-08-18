@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, status, generics, authentication
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import ValidationError
 from .models import LoyaltyCode, LoyaltyTransaction
 from .serializers import (
@@ -125,13 +125,27 @@ class LoyaltyCodeVerifyView(generics.GenericAPIView):
                 "coffee_to_next_free": loyalty_code.user.get_coffee_to_next_free()
             }
             
-            return Response(
-                {
-                    "success": True,
-                    "user": user_data
-                },
-                status=status.HTTP_200_OK
-            )
+            # Если это бесплатный токен (8-значный/флаг в модели) — вернуть инструкцию для выдачи
+            if loyalty_code.is_free_coffee_redemption or len(loyalty_code.code) == 8:
+                return Response(
+                    {
+                        "success": True,
+                        "free_token": True,
+                        "instruction": "Выдай бесплатный кофе этому гостю",
+                        "confirm_required": True,
+                        "user": user_data
+                    },
+                    status=status.HTTP_200_OK
+                )
+            else:
+                return Response(
+                    {
+                        "success": True,
+                        "free_token": False,
+                        "user": user_data
+                    },
+                    status=status.HTTP_200_OK
+                )
             
         except LoyaltyCode.DoesNotExist:
             return Response(
@@ -146,14 +160,14 @@ class LoyaltyCodeStatusView(generics.GenericAPIView):
     Клиент опрашивает раз в секунду. Когда статус становится used,
     фронт делает редирект на главную.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     authentication_classes = [authentication.TokenAuthentication]
 
     def get(self, request, *args, **kwargs):
         code = request.query_params.get("code")
         if not code:
             return Response({"error": "Параметр code обязателен"}, status=status.HTTP_400_BAD_REQUEST)
-        if not code.isdigit() or len(code) != 6:
+        if not code.isdigit() or len(code) not in (6, 8):
             return Response({"error": "Неверный формат code"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Только коды текущего пользователя
@@ -175,6 +189,49 @@ class LoyaltyCodeStatusView(generics.GenericAPIView):
             "is_expired": is_expired,
             "used": used,
             "should_redirect": used
+        }, status=status.HTTP_200_OK)
+
+
+class LoyaltyFreeCoffeeConfirmView(generics.GenericAPIView):
+    """Подтверждение выдачи бесплатного кофе (деактивация 8-значного токена). Для бариста."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.TokenAuthentication]
+
+    def post(self, request, *args, **kwargs):
+        # Только бариста
+        if request.user.role not in [User.ROLE_BARISTA, User.ROLE_SENIOR_BARISTA]:
+            return Response({"error": "Только бариста может подтверждать выдачу"}, status=status.HTTP_403_FORBIDDEN)
+
+        code = request.data.get("code", "")
+        if not code.isdigit() or len(code) != 8:
+            return Response({"error": "Код должен состоять из 8 цифр"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            lc = LoyaltyCode.objects.get(code=code, is_active=True, is_free_coffee_redemption=True)
+        except LoyaltyCode.DoesNotExist:
+            return Response({"error": "Код не найден или уже использован"}, status=status.HTTP_404_NOT_FOUND)
+
+        if lc.is_expired():
+            return Response({"error": "Срок действия кода истек"}, status=status.HTTP_400_BAD_REQUEST)
+
+        customer = lc.user
+        # Создаём нулевую транзакцию-аудит
+        trx = LoyaltyTransaction.objects.create(
+            user=customer,
+            barista=request.user,
+            coffee_shop=getattr(request.user, 'coffee_shop', None),
+            transaction_type=LoyaltyTransaction.TYPE_SPENDING,
+            amount=0,
+            points_used=0,
+            points_earned=0,
+        )
+
+        lc.deactivate()
+
+        return Response({
+            "success": True,
+            "message": "Бесплатный кофе выдан",
+            "transaction_id": trx.id,
         }, status=status.HTTP_200_OK)
 
 

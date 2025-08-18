@@ -16,7 +16,7 @@ class LoyaltyCode(models.Model):
         verbose_name="Пользователь"
     )
     code = models.CharField(
-        max_length=6,
+        max_length=8,
         unique=True,
         verbose_name="Код лояльности"
     )
@@ -54,22 +54,33 @@ class LoyaltyCode(models.Model):
         self.save()
     
     @classmethod
-    def generate_code(cls):
-        """Генерирует случайный 6-значный код"""
+    def generate_regular_code(cls):
+        """6-значный код для обычных операций"""
         return ''.join(random.choices(string.digits, k=6))
+
+    @classmethod
+    def generate_redeem_code(cls):
+        """8-значный код для бесплатного кофе"""
+        return ''.join(random.choices(string.digits, k=8))
     
     @classmethod
     def create_for_user(cls, user, expiration_minutes=15, is_free_coffee=False):
-        """Создает новый код для пользователя и деактивирует старые"""
-        # Деактивируем все старые коды пользователя
-        cls.objects.filter(user=user, is_active=True).update(is_active=False)
-        
-        # Генерируем новый уникальный код
+        """Создает новый код. Деактивирует только активные коды того же типа."""
+        # Деактивируем только коды того же типа
+        cls.objects.filter(
+            user=user,
+            is_active=True,
+            is_free_coffee_redemption=is_free_coffee
+        ).update(is_active=False)
+
+        # Генерируем новый уникальный код соответствующей длины
         while True:
-            code = cls.generate_code()
+            code = (
+                cls.generate_redeem_code() if is_free_coffee else cls.generate_regular_code()
+            )
             if not cls.objects.filter(code=code, is_active=True).exists():
                 break
-        
+
         # Создаем новый код с указанным сроком действия
         expires_at = timezone.now() + timezone.timedelta(minutes=expiration_minutes)
         return cls.objects.create(
@@ -78,6 +89,11 @@ class LoyaltyCode(models.Model):
             expires_at=expires_at,
             is_free_coffee_redemption=is_free_coffee
         )
+
+    @classmethod
+    def create_free_for_user(cls, user, expiration_minutes=60*24*7):
+        """Упрощённый хелпер для выпуска 8-значного кода на бесплатный кофе."""
+        return cls.create_for_user(user, expiration_minutes=expiration_minutes, is_free_coffee=True)
 
 
 class LoyaltyTransaction(models.Model):
